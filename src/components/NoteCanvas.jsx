@@ -157,9 +157,9 @@ export default function NoteCanvas({
     setEditorMode('edit')
   }, [activeNoteId])
 
-  // Sync state to editor DOM when the note loads or is cleared
+  // Sync state to editor DOM when the note loads or is cleared or when editor remounts
   useEffect(() => {
-    if (editorRef.current) {
+    if (editorRef.current && editorMode === 'edit') {
       const currentHtml = markdownToHtml(noteBody)
       const isEmpty = editorRef.current.innerHTML === '' || editorRef.current.innerHTML === '<div><br></div>'
       if (isEmpty || lastHtmlRef.current !== currentHtml) {
@@ -167,7 +167,7 @@ export default function NoteCanvas({
         lastHtmlRef.current = currentHtml
       }
     }
-  }, [activeNoteId, noteBody === ''])
+  }, [activeNoteId, noteBody === '', editorMode, mobileNotesOpen])
 
   const handleApplyFormat = (formatText) => {
     const updatedBody = noteBody.substring(0, noteBody.length - 1) + formatText
@@ -266,6 +266,18 @@ export default function NoteCanvas({
     }
   }, [noteTitle, noteBody, noteImageUrl, onSaveNote])
 
+  const handleManualSave = async () => {
+    setIsNoteSaved(false)
+    try {
+      if (onSaveNote) {
+        await onSaveNote(noteTitle, noteBody, noteImageUrl)
+        setIsNoteSaved(true)
+      }
+    } catch (error) {
+      console.error('Error saving note manually:', error)
+    }
+  }
+
   const handleCopyNote = () => {
     if (!noteBody) return
     navigator.clipboard.writeText(noteBody)
@@ -280,43 +292,44 @@ export default function NoteCanvas({
 
   return (
     <>
-      {/* Overlay Backdrop for Notes Drawer */}
       {mobileNotesOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-zinc-950/20 backdrop-blur-xs"
-          onClick={() => setMobileNotesOpen(false)}
-        />
-      )}
-
-      <aside className={`
-        fixed inset-y-0 right-0 z-50 w-96 border-l border-zinc-200 bg-zinc-50 flex flex-col h-full shadow-xl
-        transition-transform duration-300 ease-in-out
-        ${mobileNotesOpen ? 'translate-x-0' : 'translate-x-full'}
-      `}>
-        {/* Notes Canvas Header */}
-        <div className="p-6 border-b border-zinc-200 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-4xl h-[85vh] bg-surface border border-white/10 shadow-card flex flex-col rounded-3xl overflow-hidden animate-in zoom-in-95 duration-300 relative">
+        {/* Canvas Header */}
+        <div className="flex items-center justify-between p-4 border-b border-white/5 bg-surface">
           <div className="flex items-center gap-2">
-            <ClipboardList className="w-4 h-4 text-zinc-400" />
-            <h2 className="font-semibold text-zinc-900 text-sm">Quick Access Notes</h2>
+            <div className="p-1.5 bg-brand/20 border border-brand/30 rounded-lg shadow-card">
+              <ClipboardList className="w-4 h-4 text-brand" />
+            </div>
+            <h2 className="font-bold text-white text-sm tracking-wide">Quick Access Notes</h2>
           </div>
           <div className="flex items-center gap-2">
-            {/* Autosave status pill */}
-            {(noteTitle || noteBody) && (
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full transition-all duration-300 ${
-                isNoteSaved ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'
-              }`}>
-                {isNoteSaved ? 'Saved' : 'Saving...'}
-              </span>
-            )}
+            {/* Save Action */}
+            <div className="flex items-center gap-1.5">
+              {(noteTitle || noteBody) && (
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full transition-all duration-300 ${
+                  isNoteSaved ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-glow-green' : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                }`}>
+                  {isNoteSaved ? 'Saved' : 'Saving...'}
+                </span>
+              )}
+              <button
+                onClick={handleManualSave}
+                disabled={!noteTitle && !noteBody}
+                className="px-3 py-1 bg-brand hover:bg-brandHover text-white text-[10px] font-bold rounded-lg transition-colors shadow-card disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer border border-white/10"
+              >
+                Save Note
+              </button>
+            </div>
 
             {/* Edit / Preview Segment Toggle */}
-            <div className="flex items-center bg-zinc-100 p-0.5 rounded-lg border border-zinc-200 select-none">
+            <div className="flex items-center bg-canvas p-1 rounded-lg border border-white/5 select-none">
               <button
                 onClick={() => setEditorMode('edit')}
                 className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
                   editorMode === 'edit'
-                    ? 'bg-white text-zinc-900 shadow-3xs'
-                    : 'text-zinc-500 hover:text-zinc-900'
+                    ? 'bg-brand text-white shadow-card'
+                    : 'text-zinc-500 hover:text-white'
                 }`}
               >
                 Edit
@@ -325,8 +338,8 @@ export default function NoteCanvas({
                 onClick={() => setEditorMode('preview')}
                 className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
                   editorMode === 'preview'
-                    ? 'bg-white text-zinc-900 shadow-3xs'
-                    : 'text-zinc-500 hover:text-zinc-900'
+                    ? 'bg-brand text-white shadow-card'
+                    : 'text-zinc-500 hover:text-white'
                 }`}
               >
                 Preview
@@ -336,7 +349,7 @@ export default function NoteCanvas({
             {/* Create new note button */}
             <button 
               onClick={onNewNote}
-              className="p-1.5 rounded-md hover:bg-zinc-200 text-zinc-500 hover:text-zinc-800 cursor-pointer"
+              className="p-1.5 rounded-md hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer transition-colors"
               title="Create New Note"
             >
               <Plus className="w-4 h-4" />
@@ -345,7 +358,7 @@ export default function NoteCanvas({
             {/* Close button */}
             <button 
               onClick={() => setMobileNotesOpen(false)}
-              className="p-1.5 rounded-md hover:bg-zinc-200 text-zinc-500 hover:text-zinc-800 cursor-pointer"
+              className="p-1.5 rounded-md hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer transition-colors"
               title="Close Note Canvas"
             >
               <X className="w-4 h-4" />
@@ -354,7 +367,7 @@ export default function NoteCanvas({
         </div>
 
         {/* Clean Note Title input */}
-        <div className="px-6 py-4 border-b border-zinc-100 bg-white">
+        <div className="px-6 py-4 border-b border-white/5 bg-canvas">
           <input
             ref={titleInputRef}
             type="text"
@@ -364,13 +377,13 @@ export default function NoteCanvas({
               setNoteTitle(e.target.value)
               setIsNoteSaved(false)
             }}
-            className="w-full text-sm font-semibold text-zinc-900 placeholder-zinc-400 bg-transparent border-0 p-0 focus:ring-0 focus:outline-hidden"
+            className="w-full text-sm font-semibold text-white placeholder-zinc-500 bg-transparent border-0 p-0 focus:ring-0 focus:outline-hidden"
           />
         </div>
 
         {/* Image URL input */}
-        <div className="px-6 py-2.5 border-b border-zinc-100 bg-white flex items-center gap-2">
-          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider shrink-0 select-none">Image URL:</span>
+        <div className="px-6 py-2.5 border-b border-white/5 bg-canvas flex items-center gap-2">
+          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider shrink-0 select-none">Image URL:</span>
           <input
             type="text"
             placeholder="Optional image link..."
@@ -379,16 +392,16 @@ export default function NoteCanvas({
               setNoteImageUrl(e.target.value)
               setIsNoteSaved(false)
             }}
-            className="w-full text-xs text-zinc-650 placeholder-zinc-400 bg-transparent border-0 p-0 focus:ring-0 focus:outline-hidden"
+            className="w-full text-xs text-zinc-400 placeholder-zinc-600 bg-transparent border-0 p-0 focus:ring-0 focus:outline-hidden"
           />
         </div>
 
         {/* Scrollable distraction-free editor canvas */}
-        <div className="flex-1 bg-white overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 bg-canvas overflow-y-auto p-6 space-y-4">
           <style>{`
             .editable-editor:empty:before {
               content: attr(data-placeholder);
-              color: #a1a1aa;
+              color: #475569;
               cursor: text;
               display: block;
             }
@@ -401,7 +414,7 @@ export default function NoteCanvas({
                 onError={(e) => {
                   e.target.style.display = 'none'
                 }}
-                className="max-h-60 w-full object-cover rounded-lg shadow-2xs border border-zinc-200"
+                className="max-h-60 w-full object-cover rounded-xl shadow-xl border border-white/10"
               />
               <button
                 onClick={() => {
@@ -433,7 +446,7 @@ export default function NoteCanvas({
                 contentEditable
                 onInput={handleEditorInput}
                 onPaste={handlePaste}
-                className="editable-editor w-full min-h-[300px] h-full text-sm text-zinc-700 placeholder-zinc-400 bg-transparent focus:outline-hidden"
+                className="editable-editor w-full min-h-[300px] h-full text-sm text-slate-300 placeholder-zinc-600 bg-transparent focus:outline-hidden"
                 data-placeholder="Type your unedited, rapid raw thoughts here... (Type / for formatting)"
                 style={{
                   outline: 'none',
@@ -443,7 +456,7 @@ export default function NoteCanvas({
               />
             </div>
           ) : (
-            <div className="prose max-w-none text-sm text-zinc-750 overflow-y-auto leading-relaxed pb-8">
+            <div className="prose prose-invert max-w-none text-sm text-slate-300 overflow-y-auto leading-relaxed pb-8">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
@@ -465,10 +478,10 @@ export default function NoteCanvas({
         </div>
 
         {/* Note Status, Counters & Utility Actions Bar */}
-        <div className="p-6 border-t border-zinc-200 bg-zinc-50/50 flex items-center justify-between text-xs text-zinc-500 font-medium">
+        <div className="p-6 border-t border-white/5 bg-surface/50 flex items-center justify-between text-xs text-zinc-500 font-medium rounded-b-3xl">
           <div className="flex items-center gap-4">
             <span>{getWordCount()} {getWordCount() === 1 ? 'word' : 'words'}</span>
-            <span className="text-zinc-300">|</span>
+            <span className="text-zinc-600">|</span>
             <span>{noteBody.length} chars</span>
           </div>
 
@@ -476,7 +489,7 @@ export default function NoteCanvas({
             {activeNoteId && (
               <button
                 onClick={onDeleteNote}
-                className="p-2 rounded-lg border border-red-200 bg-red-50/50 hover:bg-red-100 text-red-600 transition-colors shadow-3xs flex items-center gap-1.5 cursor-pointer"
+                className="p-2 rounded-lg border border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors shadow-3xs flex items-center gap-1.5 cursor-pointer"
                 title="Delete Note"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -487,15 +500,17 @@ export default function NoteCanvas({
             <button
               onClick={handleCopyNote}
               disabled={!noteBody}
-              className={`p-2 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-600 transition-colors shadow-3xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={`p-2 rounded-lg border border-white/10 bg-canvas hover:bg-surface text-zinc-400 hover:text-white transition-colors shadow-3xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
               title="Copy to Clipboard"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
               <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy'}</span>
             </button>
           </div>
+          </div>
         </div>
-      </aside>
+      </div>
+      )}
     </>
   )
 }

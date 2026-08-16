@@ -15,8 +15,8 @@ export default function TaskInput({ onAddTask, inputRef }) {
   }
 
   return (
-    <div className="p-6 rounded-2xl border border-zinc-200/80 bg-zinc-50/50 shadow-3xs space-y-4">
-      <label htmlFor="focus-input" className="block text-xs font-bold text-zinc-400 uppercase tracking-wider">
+    <div className="p-6 rounded-2xl border border-white/5 bg-surface shadow-top-glow-blue space-y-4 relative overflow-hidden transition-all hover:border-white/10">
+      <label htmlFor="focus-input" className="block text-xs font-bold text-slate-300 uppercase tracking-widest relative z-10">
         What is your focus next?
       </label>
       <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2">
@@ -28,14 +28,14 @@ export default function TaskInput({ onAddTask, inputRef }) {
             placeholder="e.g. Design app dashboard layouts..."
             value={newTaskText}
             onChange={(e) => setNewTaskText(e.target.value)}
-            className="w-full pl-4 pr-24 py-3 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-hidden focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-all shadow-2xs"
+            className="w-full pl-4 pr-24 py-3 bg-canvas border border-white/5 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-hidden focus:ring-1 focus:ring-brand focus:border-brand transition-all shadow-inner relative z-10"
           />
           {/* Category Selector integrated inside the input container for clean aesthetics */}
-          <div className="absolute right-2 top-1.5 flex items-center">
+          <div className="absolute right-2 top-1.5 flex items-center z-20">
             <select 
               value={newTaskCategory}
               onChange={(e) => setNewTaskCategory(e.target.value)}
-              className="bg-zinc-100 hover:bg-zinc-200/80 text-[11px] text-zinc-700 font-semibold px-2 py-1.5 rounded-lg border-0 focus:ring-1 focus:ring-zinc-900/10 cursor-pointer"
+              className="bg-surface hover:bg-white/5 text-[11px] text-zinc-300 font-semibold px-2 py-1.5 rounded-lg border border-white/5 focus:ring-1 focus:ring-brand cursor-pointer shadow-sm"
             >
               <option value="Work">Work</option>
               <option value="Personal">Personal</option>
@@ -50,13 +50,13 @@ export default function TaskInput({ onAddTask, inputRef }) {
           type="datetime-local" 
           value={reminderTime}
           onChange={(e) => setReminderTime(e.target.value)}
-          className="px-3 py-3 bg-white border border-zinc-200 rounded-xl text-sm text-zinc-500 focus:outline-hidden focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-all shadow-2xs cursor-pointer hover:bg-zinc-50/30"
+          className="px-3 py-3 bg-canvas border border-white/5 rounded-xl text-sm text-zinc-300 focus:outline-hidden focus:ring-1 focus:ring-brand focus:border-brand transition-all shadow-inner cursor-pointer hover:bg-white/5 relative z-10"
           title="Set target reminder date/time"
         />
 
         <button 
           type="submit" 
-          className="px-4 py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer whitespace-nowrap"
+          className="px-6 py-3 bg-brand hover:bg-brandHover text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 transition-all shadow-card cursor-pointer whitespace-nowrap relative z-10 border border-white/10"
         >
           <Plus className="w-4 h-4" />
           <span>Add</span>

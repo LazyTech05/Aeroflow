@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import { BookOpen, Calendar, ShieldAlert, Check, Copy } from 'lucide-react'
+import { BookOpen, Calendar, ShieldAlert, Check, Copy, Sparkles } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { API_URL } from '../config'
+import { supabase } from '../lib/supabaseClient'
 
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false)
@@ -74,12 +74,27 @@ export default function SharedBundleView({ shareId }) {
     const fetchSharedNotes = async () => {
       try {
         setLoading(true)
-        const res = await fetch(`${API_URL}/api/shares/${shareId}`)
-        if (!res.ok) {
+        
+        // Fetch share bundle
+        const { data: shareData, error: shareError } = await supabase
+          .from('shares')
+          .select('note_ids')
+          .eq('id', shareId)
+          .single()
+          
+        if (shareError || !shareData) {
           throw new Error('This shared link does not exist or has expired')
         }
-        const data = await res.json()
-        setNotes(data)
+        
+        // Fetch actual notes
+        const { data: notesData, error: notesError } = await supabase
+          .from('notes')
+          .select('*')
+          .in('id', shareData.note_ids)
+          
+        if (notesError) throw notesError
+        
+        setNotes(notesData || [])
       } catch (err) {
         setError(err.message)
       } finally {
@@ -93,24 +108,24 @@ export default function SharedBundleView({ shareId }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-6 text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-950 mb-4" />
-        <p className="text-sm font-medium text-zinc-500">Loading secure shared notes bundle...</p>
+      <div className="min-h-screen bg-canvas flex flex-col items-center justify-center p-6 text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand mb-4" />
+        <p className="text-sm font-medium text-slate-400">Loading secure shared notes bundle...</p>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-6 text-center space-y-4">
-        <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center text-red-500">
+      <div className="min-h-screen bg-canvas flex flex-col items-center justify-center p-6 text-center space-y-4">
+        <div className="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 shadow-glow-rose">
           <ShieldAlert className="w-6 h-6" />
         </div>
-        <h2 className="text-lg font-bold text-zinc-900">Access Denied</h2>
-        <p className="text-sm text-zinc-500 max-w-sm leading-relaxed">{error}</p>
+        <h2 className="text-lg font-bold text-white">Access Denied</h2>
+        <p className="text-sm text-slate-400 max-w-sm leading-relaxed">{error}</p>
         <a 
           href="/"
-          className="text-xs font-semibold px-4 py-2 border border-zinc-200 bg-white hover:bg-zinc-50 rounded-lg text-zinc-700 shadow-3xs transition-colors"
+          className="text-xs font-semibold px-4 py-2 border border-white/10 bg-surface hover:bg-surfaceHover rounded-lg text-slate-300 shadow-card transition-colors"
         >
           Go to Homepage
         </a>
@@ -119,17 +134,17 @@ export default function SharedBundleView({ shareId }) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-800 font-sans antialiased overflow-y-auto">
+    <div className="min-h-screen bg-canvas text-slate-100 font-sans antialiased overflow-y-auto selection:bg-brand/30 selection:text-white">
       {/* Premium Header */}
-      <header className="sticky top-0 z-10 backdrop-blur-md bg-white/80 border-b border-zinc-200/80 px-6 py-4">
+      <header className="sticky top-0 z-10 backdrop-blur-xl bg-canvas/80 border-b border-white/10 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-zinc-900 flex items-center justify-center text-white font-bold text-xs select-none">
-              A
+            <div className="w-6 h-6 rounded-lg bg-brand/20 border border-brand/50 flex items-center justify-center text-brand shadow-card select-none">
+              <Sparkles className="w-3.5 h-3.5" />
             </div>
-            <span className="font-semibold text-zinc-900 text-sm tracking-tight">AeroFlow Share</span>
+            <span className="font-bold text-white text-sm tracking-wide">AeroFlow Share</span>
           </div>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-500 border border-zinc-200/50 uppercase tracking-wider select-none">
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 uppercase tracking-widest shadow-glow-green select-none">
             Public Read-Only
           </span>
         </div>
@@ -137,35 +152,36 @@ export default function SharedBundleView({ shareId }) {
 
       {/* Main Workspace Column */}
       <main className="max-w-3xl mx-auto px-6 py-12 space-y-12">
-        <div className="space-y-2 border-b border-zinc-200 pb-6">
-          <div className="flex items-center gap-1.5 text-zinc-400 text-xs font-semibold uppercase tracking-wider">
+        <div className="space-y-2 border-b border-white/10 pb-6 relative">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-[100px] bg-brand/10 blur-[60px] pointer-events-none rounded-full" />
+          <div className="flex items-center gap-1.5 text-brand text-xs font-semibold uppercase tracking-widest relative z-10 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]">
             <BookOpen className="w-3.5 h-3.5" />
             <span>Shared Document Bundle</span>
           </div>
-          <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Classmate Shared Notes</h1>
-          <p className="text-sm text-zinc-500">Secure access to individual study documents shared by Varun Erabati.</p>
+          <h1 className="text-3xl font-extrabold text-white tracking-wide relative z-10">Classmate Shared Notes</h1>
+          <p className="text-sm text-slate-400 relative z-10">Secure access to individual study documents shared by Varun Erabati.</p>
         </div>
 
         <div className="space-y-10">
           {notes.map((note, index) => (
             <article 
-              key={note._id || index}
-              className="p-8 border border-zinc-200/80 rounded-2xl bg-white shadow-2xs space-y-6"
+              key={note.id || index}
+              className="p-8 border border-white/10 rounded-2xl bg-surface shadow-card space-y-6 backdrop-blur-md"
             >
               {/* Note Header */}
-              <div className="space-y-2">
-                <h2 className="text-xl font-bold text-zinc-900 tracking-tight">{note.title || 'Untitled Draft'}</h2>
-                <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">
+              <div className="space-y-2 border-b border-white/5 pb-4">
+                <h2 className="text-2xl font-bold text-white tracking-wide">{note.title || 'Untitled Draft'}</h2>
+                <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-semibold uppercase tracking-widest">
                   <Calendar className="w-3 h-3" />
-                  <span>Shared on: {new Date(note.createdAt).toLocaleDateString()}</span>
+                  <span>Shared on: {new Date(note.created_at || new Date()).toLocaleDateString()}</span>
                 </div>
               </div>
 
               {/* Optional Top Image */}
-              {note.imageUrl && (
-                <div className="relative overflow-hidden rounded-xl border border-zinc-100">
+              {note.image_url && (
+                <div className="relative overflow-hidden rounded-xl border border-white/10 shadow-lg">
                   <img
-                    src={note.imageUrl}
+                    src={note.image_url}
                     alt="Document preview"
                     className="max-h-80 w-full object-cover"
                   />
@@ -173,7 +189,7 @@ export default function SharedBundleView({ shareId }) {
               )}
 
               {/* Note Rich Content Body */}
-              <div className="prose max-w-none text-sm text-zinc-750 leading-relaxed">
+              <div className="prose prose-invert max-w-none text-sm text-slate-300 leading-relaxed">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
@@ -182,7 +198,7 @@ export default function SharedBundleView({ shareId }) {
                       <img
                         src={src}
                         alt={alt || 'Embedded image'}
-                        className="max-h-80 w-full object-cover rounded-lg my-3 shadow-2xs border border-zinc-200 select-none"
+                        className="max-h-80 w-full object-cover rounded-xl my-3 shadow-xl border border-white/10 select-none"
                         {...props}
                       />
                     )
@@ -195,16 +211,16 @@ export default function SharedBundleView({ shareId }) {
           ))}
 
           {notes.length === 0 && (
-            <div className="p-16 border border-dashed border-zinc-200 rounded-2xl bg-white text-center space-y-3">
-              <BookOpen className="w-10 h-10 text-zinc-300 mx-auto" />
-              <h3 className="text-base font-bold text-zinc-950">Empty Bundle</h3>
-              <p className="text-sm text-zinc-400 max-w-sm mx-auto">This shared bundle does not contain any notes.</p>
+            <div className="p-16 border border-dashed border-white/10 rounded-2xl bg-surface/50 text-center space-y-3 backdrop-blur-sm">
+              <BookOpen className="w-10 h-10 text-zinc-600 mx-auto" />
+              <h3 className="text-base font-bold text-slate-300">Empty Bundle</h3>
+              <p className="text-sm text-zinc-500 max-w-sm mx-auto">This shared bundle does not contain any notes.</p>
             </div>
           )}
         </div>
       </main>
 
-      <footer className="max-w-3xl mx-auto py-12 px-6 border-t border-zinc-200/50 flex justify-center text-center text-xs text-zinc-400">
+      <footer className="max-w-3xl mx-auto py-12 px-6 border-t border-white/10 flex justify-center text-center text-xs text-zinc-600 font-medium">
         <span>© {new Date().getFullYear()} AeroFlow. Built securely.</span>
       </footer>
     </div>
