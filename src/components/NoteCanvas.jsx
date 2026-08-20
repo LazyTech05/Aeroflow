@@ -146,6 +146,8 @@ export default function NoteCanvas({
 }) {
   const [copied, setCopied] = useState(false)
   const [isNoteSaved, setIsNoteSaved] = useState(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [editorMode, setEditorMode] = useState('edit') // 'edit' | 'preview'
   const [slashMenu, setSlashMenu] = useState({ open: false, x: 0, y: 0 })
 
@@ -155,6 +157,9 @@ export default function NoteCanvas({
   // Reset to edit mode when active note changes
   useEffect(() => {
     setEditorMode('edit')
+    setHasUnsavedChanges(false)
+    setIsNoteSaved(false)
+    setIsSaving(false)
   }, [activeNoteId])
 
   // Sync state to editor DOM when the note loads or is cleared or when editor remounts
@@ -172,7 +177,7 @@ export default function NoteCanvas({
   const handleApplyFormat = (formatText) => {
     const updatedBody = noteBody.substring(0, noteBody.length - 1) + formatText
     setNoteBody(updatedBody)
-    setIsNoteSaved(false)
+    setHasUnsavedChanges(true)
 
     if (editorRef.current) {
       const currentHtml = markdownToHtml(updatedBody)
@@ -199,7 +204,7 @@ export default function NoteCanvas({
       lastHtmlRef.current = html
       const markdown = htmlToMarkdown(html)
       setNoteBody(markdown)
-      setIsNoteSaved(false)
+      setHasUnsavedChanges(true)
 
       if (markdown.endsWith('/')) {
         setSlashMenu({ open: true, x: 0, y: 0 })
@@ -249,28 +254,35 @@ export default function NoteCanvas({
 
   // Auto-save feedback loop to the database
   useEffect(() => {
+    if (!hasUnsavedChanges) return;
+
     const hasContent = noteTitle.trim() !== '' || noteBody.trim() !== '' || noteImageUrl.trim() !== ''
     if (hasContent) {
-      setIsNoteSaved(false)
+      setIsSaving(true)
       const timeout = setTimeout(async () => {
         try {
           if (onSaveNote) {
             await onSaveNote(noteTitle, noteBody, noteImageUrl)
+            setHasUnsavedChanges(false)
+            setIsSaving(false)
             setIsNoteSaved(true)
           }
         } catch (error) {
           console.error('Error auto-saving note:', error)
+          setIsSaving(false)
         }
       }, 800)
       return () => clearTimeout(timeout)
     }
-  }, [noteTitle, noteBody, noteImageUrl, onSaveNote])
+  }, [noteTitle, noteBody, noteImageUrl, hasUnsavedChanges])
 
   const handleManualSave = async () => {
-    setIsNoteSaved(false)
+    setIsSaving(true)
     try {
       if (onSaveNote) {
         await onSaveNote(noteTitle, noteBody, noteImageUrl)
+        setHasUnsavedChanges(false)
+        setIsSaving(false)
         setIsNoteSaved(true)
       }
     } catch (error) {
@@ -308,15 +320,21 @@ export default function NoteCanvas({
             <div className="flex items-center gap-1.5">
               {(noteTitle || noteBody) && (
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full transition-all duration-300 ${
-                  isNoteSaved ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-glow-green' : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                  isSaving ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' :
+                  hasUnsavedChanges ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' :
+                  'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-glow-green'
                 }`}>
-                  {isNoteSaved ? 'Saved' : 'Saving...'}
+                  {isSaving ? 'Saving...' : hasUnsavedChanges ? 'Unsaved' : 'Saved'}
                 </span>
               )}
               <button
                 onClick={handleManualSave}
-                disabled={!noteTitle && !noteBody}
-                className="px-3 py-1 bg-brand hover:bg-brandHover text-white text-[10px] font-bold rounded-lg transition-colors shadow-card disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer border border-white/10"
+                disabled={!hasUnsavedChanges || (!noteTitle && !noteBody)}
+                className={`px-3 py-1 text-[10px] font-bold rounded-lg transition-colors shadow-card border border-white/10 ${
+                  !hasUnsavedChanges || (!noteTitle && !noteBody) 
+                    ? 'bg-white/5 text-zinc-500 border-white/5 cursor-not-allowed opacity-70' 
+                    : 'bg-brand hover:bg-brandHover text-white cursor-pointer'
+                }`}
               >
                 Save Note
               </button>
@@ -375,9 +393,9 @@ export default function NoteCanvas({
             value={noteTitle}
             onChange={(e) => {
               setNoteTitle(e.target.value)
-              setIsNoteSaved(false)
+              setHasUnsavedChanges(true)
             }}
-            className="w-full text-sm font-semibold text-white placeholder-zinc-500 bg-transparent border-0 p-0 focus:ring-0 focus:outline-hidden"
+            className="w-full text-sm font-semibold text-white placeholder-zinc-500 bg-transparent border-0 border-transparent p-0 focus:ring-0 focus:outline-none focus:border-transparent focus:shadow-none"
           />
         </div>
 
@@ -390,9 +408,9 @@ export default function NoteCanvas({
             value={noteImageUrl}
             onChange={(e) => {
               setNoteImageUrl(e.target.value)
-              setIsNoteSaved(false)
+              setHasUnsavedChanges(true)
             }}
-            className="w-full text-xs text-zinc-400 placeholder-zinc-600 bg-transparent border-0 p-0 focus:ring-0 focus:outline-hidden"
+            className="w-full text-xs text-zinc-400 placeholder-zinc-600 bg-transparent border-0 border-transparent p-0 focus:ring-0 focus:outline-none focus:border-transparent focus:shadow-none"
           />
         </div>
 
@@ -419,7 +437,7 @@ export default function NoteCanvas({
               <button
                 onClick={() => {
                   setNoteImageUrl('')
-                  setIsNoteSaved(false)
+                  setHasUnsavedChanges(true)
                 }}
                 className="absolute top-2 right-2 p-1 rounded-md bg-white/80 hover:bg-white text-zinc-650 hover:text-zinc-950 shadow-xs cursor-pointer opacity-0 group-hover/image:opacity-100 transition-opacity"
                 title="Remove Image"

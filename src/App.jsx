@@ -92,6 +92,7 @@ function MainApp() {
         const { data: tasksData, error: tasksError } = await supabase
           .from('tasks')
           .select('*')
+          .eq('user_id', session.user.id)
           .order('created_at', { ascending: false });
 
         if (!tasksError && tasksData) {
@@ -106,17 +107,12 @@ function MainApp() {
         const { data: notesData, error: notesError } = await supabase
           .from('notes')
           .select('*')
+          .eq('user_id', session.user.id)
           .order('created_at', { ascending: false });
         
         if (!notesError && notesData) {
           setNotes(notesData);
-          if (notesData.length > 0) {
-            const latestNote = notesData[0];
-            setActiveNoteId(latestNote.id);
-            setNoteTitle(latestNote.title);
-            setNoteBody(latestNote.content);
-            setNoteImageUrl(latestNote.image_url || '');
-          }
+
         }
       } catch (error) {
         console.error('Error fetching data on mount:', error)
@@ -216,12 +212,13 @@ function MainApp() {
   const handleAddTask = async (title, category, reminderTime) => {
     if (!session) return;
     try {
+      const parsedReminderTime = reminderTime ? new Date(reminderTime).toISOString() : null;
       const { data, error } = await supabase
         .from('tasks')
         .insert([{ 
           title, 
           category: category || 'Work', 
-          due_at: reminderTime,
+          due_at: parsedReminderTime,
           user_id: session.user.id
         }])
         .select()
@@ -393,7 +390,7 @@ function MainApp() {
           setGeneratedLink('')
           setSelectedShareNotes([])
         }}
-        onToggleNotes={() => setMobileNotesOpen(prev => !prev)}
+        onToggleNotes={handleNewNote}
       />
 
       {/* 2. CENTER COLUMN */}
@@ -408,7 +405,7 @@ function MainApp() {
           </button>
           <span className="font-bold text-white text-sm tracking-wide">AeroFlow</span>
           <button 
-            onClick={() => setMobileNotesOpen(true)}
+            onClick={handleNewNote}
             className="p-1.5 rounded-md border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-400 shadow-sm cursor-pointer transition-colors"
           >
             <BookOpen className="w-5 h-5" />

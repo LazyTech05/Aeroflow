@@ -37,10 +37,10 @@ export default function TaskInput({ onAddTask, inputRef }) {
               onChange={(e) => setNewTaskCategory(e.target.value)}
               className="bg-surface hover:bg-white/5 text-[11px] text-zinc-300 font-semibold px-2 py-1.5 rounded-lg border border-white/5 focus:ring-1 focus:ring-brand cursor-pointer shadow-sm"
             >
-              <option value="Work">Work</option>
-              <option value="Personal">Personal</option>
-              <option value="Design">Design</option>
-              <option value="Dev">Dev</option>
+              <option value="Work" className="bg-zinc-900 text-white">Work</option>
+              <option value="Personal" className="bg-zinc-900 text-white">Personal</option>
+              <option value="Design" className="bg-zinc-900 text-white">Design</option>
+              <option value="Dev" className="bg-zinc-900 text-white">Dev</option>
             </select>
           </div>
         </div>
